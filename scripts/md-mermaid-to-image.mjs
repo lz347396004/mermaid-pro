@@ -24,10 +24,12 @@
 
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import puppeteer from 'puppeteer';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const localMermaidPath = path.join(__dirname, 'node_modules', 'mermaid', 'dist', 'mermaid.min.js');
 
 // Parse arguments
 const args = process.argv.slice(2);
@@ -117,7 +119,7 @@ function extractMermaidBlocks(content) {
 
 // Generate unique filename for image
 function generateImageFilename(index, code) {
-  const hash = code.slice(0, 50).replace(/[^a-zA-Z0-9]/g, '-').slice(0, 20);
+  const hash = crypto.createHash('md5').update(code).digest('hex').slice(0, 8);
   return `${prefix}${index + 1}-${hash}.${format}`;
 }
 
@@ -126,7 +128,6 @@ const htmlTemplate = (code) => `
 <!DOCTYPE html>
 <html>
 <head>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <style>
     body { margin: 0; padding: 20px; background: transparent; }
     .mermaid { display: flex; justify-content: center; }
@@ -146,7 +147,8 @@ async function convertToImage(browser, code, outputPath, outputFormat) {
   let page;
   try {
     page = await browser.newPage();
-    await page.setContent(htmlTemplate(code), { waitUntil: 'networkidle0' });
+    await page.setContent(htmlTemplate(code), { waitUntil: 'domcontentloaded' });
+    await page.addScriptTag({ path: localMermaidPath });
 
     // Wait for mermaid to render
     await page.waitForSelector('.mermaid svg', { timeout: 10000 });
@@ -240,7 +242,7 @@ async function processMarkdownFile(browser, mdFilePath) {
     console.log(`  ✅ Updated: ${mdFilePath}`);
   }
 
-  return { processed: blocks.length, converted: conversions.length };
+  return { processed: blocks.length, converted: conversions.length, failed: blocks.length - conversions.length };
 }
 
 // Main
@@ -265,11 +267,13 @@ async function main() {
   try {
     let totalProcessed = 0;
     let totalConverted = 0;
+    let totalFailed = 0;
 
     for (const file of mdFiles) {
       const result = await processMarkdownFile(browser, file);
       totalProcessed += result.processed;
       totalConverted += result.converted;
+      totalFailed += result.failed || 0;
     }
 
     console.log(`\n📊 Summary:`);
@@ -279,6 +283,10 @@ async function main() {
       console.log(`   [DRY-RUN] No changes made`);
     } else {
       console.log(`   Images generated: ${totalConverted}`);
+      if (totalFailed > 0) {
+        console.error(`   Failed conversions: ${totalFailed}`);
+        process.exit(1);
+      }
     }
   } finally {
     if (browser) {

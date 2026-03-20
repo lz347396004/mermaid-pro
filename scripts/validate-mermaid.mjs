@@ -17,6 +17,7 @@
  *   npm install mermaid jsdom
  */
 
+import fs from 'fs';
 import { JSDOM } from 'jsdom';
 
 // Initialize JSDOM environment FIRST
@@ -50,17 +51,26 @@ const mermaid = (await import('mermaid')).default;
 // Initialize mermaid
 await mermaid.initialize({
   startOnLoad: false,
-  suppressErrors: true,
+  suppressErrors: false,
   securityLevel: 'loose'
 });
 
 // Get code from argument
-const code = process.argv[2];
+let code = process.argv[2];
 
 if (!code) {
   console.error('Usage: node validate-mermaid.mjs "mermaid code"');
   console.error('   or: echo "code" | node validate-mermaid.mjs -');
   process.exit(1);
+}
+
+if (code === '-') {
+  try {
+    code = fs.readFileSync(0, 'utf8');
+  } catch {
+    console.error('Error: Failed to read from stdin');
+    process.exit(1);
+  }
 }
 
 try {
@@ -75,6 +85,7 @@ try {
       error: 'Parse returned false - unknown error',
       rawError: null
     }));
+    process.exit(1);
   }
 } catch (err) {
   // Extract clean error message
@@ -103,4 +114,5 @@ try {
     errorType: errorType,
     rawError: err.message
   }));
+  process.exit(1);
 }
