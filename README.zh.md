@@ -40,12 +40,25 @@ cp -r mermaid-pro ~/.claude/skills/
 ### 校验 Mermaid 语法
 
 ```bash
-node scripts/validate-mermaid.mjs "flowchart TD\n A --> B"
+# 内联校验 — 退出码 0 = 合法，退出码 1 = 非法（CI 友好）
+node scripts/validate-mermaid.mjs "flowchart TD
+A --> B"
+
+# 管道模式（stdin）
+echo "flowchart TD
+A --> B" | node scripts/validate-mermaid.mjs -
 ```
+
+输出：`{"valid":true}` 或 `{"valid":false,"error":"...","errorType":"..."}`
 
 ### 将 Markdown 中的 Mermaid 代码块导出为图片
 
+图片生成在**与源 `.md` 文件相同的目录**下。脚本使用本地 mermaid bundle，完全支持离线环境。
+
 ```bash
+# 预览将要转换的内容（不做任何修改）
+node scripts/md-mermaid-to-image.mjs README.md --dry-run
+
 # 导出为 SVG（默认）
 node scripts/md-mermaid-to-image.mjs ./docs --format svg
 
@@ -55,6 +68,8 @@ node scripts/md-mermaid-to-image.mjs README.md --format png
 # 保留原始代码块，同时附加图片
 node scripts/md-mermaid-to-image.mjs README.md --keep-code
 ```
+
+任意转换失败时以退出码 1 结束，可安全用于 CI 流水线。
 
 **首次使用前安装依赖：**
 

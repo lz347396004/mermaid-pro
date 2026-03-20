@@ -40,12 +40,25 @@ Or just describe what you want to visualize — Claude will automatically use th
 ### Validate Mermaid Syntax
 
 ```bash
-node scripts/validate-mermaid.mjs "flowchart TD\n A --> B"
+# Validate inline — exit 0 = valid, exit 1 = invalid (CI-friendly)
+node scripts/validate-mermaid.mjs "flowchart TD
+A --> B"
+
+# Pipe mode (stdin)
+echo "flowchart TD
+A --> B" | node scripts/validate-mermaid.mjs -
 ```
+
+Output: `{"valid":true}` or `{"valid":false,"error":"...","errorType":"..."}`
 
 ### Convert Markdown Mermaid Blocks to Images
 
+Images are generated **next to the source `.md` file**. The script uses a local mermaid bundle and works fully offline.
+
 ```bash
+# Preview what would be converted (no changes made)
+node scripts/md-mermaid-to-image.mjs README.md --dry-run
+
 # Export as SVG (default)
 node scripts/md-mermaid-to-image.mjs ./docs --format svg
 
@@ -55,6 +68,8 @@ node scripts/md-mermaid-to-image.mjs README.md --format png
 # Keep original code blocks alongside images
 node scripts/md-mermaid-to-image.mjs README.md --keep-code
 ```
+
+Exits with code 1 if any conversion fails — safe to use in CI pipelines.
 
 **Install script dependencies first:**
 
